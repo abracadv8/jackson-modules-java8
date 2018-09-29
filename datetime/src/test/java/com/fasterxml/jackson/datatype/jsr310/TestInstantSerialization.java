@@ -17,6 +17,7 @@
 package com.fasterxml.jackson.datatype.jsr310;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -31,9 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class TestInstantSerialization extends ModuleTestBase
 {
@@ -381,6 +380,43 @@ public class TestInstantSerialization extends ModuleTestBase
                 );
         assertTrue("The value should be an Instant.", value instanceof Instant);
         assertEquals("The value is not correct.", date, value);
+    }
+
+    /**
+     * This should be within the range of a max Instant and should pass
+     * @throws Exception
+     */
+    @Test(timeout=2000)
+    public void testDeserializationWithTypeInfo05() throws Exception
+    {
+        Instant date = Instant.MAX;
+        String customInstant = date.getEpochSecond() +"."+ date.getNano();
+        ObjectMapper m = newMapperBuilder()
+                .addMixIn(Temporal.class, MockObjectConfiguration.class)
+                .build();
+        Temporal value = m.readValue(
+                "[\"" + Instant.class.getName() + "\","+customInstant+"]", Temporal.class
+        );
+        assertTrue("The value should be an Instant.", value instanceof Instant);
+        assertEquals("The value is not correct.", date, value);
+    }
+
+    /**
+     * This test can potentially hang the VM, so exit if it doesn't finish
+     * within a few seconds.
+     *
+     * @throws Exception
+     */
+    @Test(timeout=2000, expected = JsonParseException.class)
+    public void testDeserializationWithTypeInfoAndStringTooLarge1() throws Exception
+    {
+        String customInstant = "1000000000000e1000000000000";
+        ObjectMapper m = newMapperBuilder()
+                .addMixIn(Temporal.class, MockObjectConfiguration.class)
+                .build();
+        m.readValue(
+                "[\"" + Instant.class.getName() + "\","+customInstant+"]", Temporal.class
+        );
     }
 
     @Test

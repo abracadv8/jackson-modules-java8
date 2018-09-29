@@ -29,6 +29,8 @@ import com.fasterxml.jackson.datatype.jsr310.DecimalUtils;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -51,6 +53,9 @@ public class InstantDeserializer<T extends Temporal>
     extends JSR310DateTimeDeserializerBase<T>
 {
     private static final long serialVersionUID = 1L;
+
+    private static final BigDecimal INSTANT_MAX = new BigDecimal(java.time.Instant.MAX.getEpochSecond() +"."+ java.time.Instant.MAX.getNano());
+    private static final BigDecimal INSTANT_MIN = new BigDecimal(java.time.Instant.MIN.getEpochSecond() +"."+ java.time.Instant.MIN.getNano());
 
     /**
      * Constants used to check if the time offset is zero. See [jackson-modules-java8#18]
@@ -277,10 +282,18 @@ public class InstantDeserializer<T extends Temporal>
                 timestamp, this.getZone(context)));
     }
     
-    protected T _fromDecimal(DeserializationContext context, BigDecimal value)
+    protected T _fromDecimal(DeserializationContext context, BigDecimal value) throws JsonMappingException
     {
+        // If the decimal isnt within the bounds of an Instant, bail out
+        if(value.compareTo(INSTANT_MAX) > 0 ||
+                value.compareTo(INSTANT_MIN) < 0) {
+            NumberFormat formatter = new DecimalFormat("0.0E0");
+            throw JsonMappingException.from(context,
+                    String.format("Value of BigDecimal (%s) not within range to be converted to Instant", formatter.format(value)));
+        }
         long seconds = value.longValue();
         int nanoseconds = DecimalUtils.extractNanosecondDecimal(value, seconds);
+
         return fromNanoseconds.apply(new FromDecimalArguments(
                 seconds, nanoseconds, getZone(context)));
     }

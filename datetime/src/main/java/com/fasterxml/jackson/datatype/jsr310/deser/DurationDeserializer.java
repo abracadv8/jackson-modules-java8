@@ -21,10 +21,13 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.datatype.jsr310.DecimalUtils;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.time.DateTimeException;
 import java.time.Duration;
 
@@ -37,6 +40,9 @@ import java.time.Duration;
 public class DurationDeserializer extends JSR310DeserializerBase<Duration>
 {
     private static final long serialVersionUID = 1L;
+
+    private static final BigDecimal INSTANT_MAX = new BigDecimal(java.time.Instant.MAX.getEpochSecond() +"."+ java.time.Instant.MAX.getNano());
+    private static final BigDecimal INSTANT_MIN = new BigDecimal(java.time.Instant.MIN.getEpochSecond() +"."+ java.time.Instant.MIN.getNano());
 
     public static final DurationDeserializer INSTANCE = new DurationDeserializer();
 
@@ -52,6 +58,14 @@ public class DurationDeserializer extends JSR310DeserializerBase<Duration>
         {
             case JsonTokenId.ID_NUMBER_FLOAT:
                 BigDecimal value = parser.getDecimalValue();
+                // If the decimal isnt within the bounds of a float, bail out
+                if(value.compareTo(INSTANT_MAX) > 0 ||
+                        value.compareTo(INSTANT_MIN) < 0) {
+                    NumberFormat formatter = new DecimalFormat("0.0E0");
+                    throw JsonMappingException.from(context,
+                            String.format("Value of BigDecimal (%s) not within range to be converted to Duration", formatter.format(value)));
+                }
+
                 long seconds = value.longValue();
                 int nanoseconds = DecimalUtils.extractNanosecondDecimal(value, seconds);
                 return Duration.ofSeconds(seconds, nanoseconds);

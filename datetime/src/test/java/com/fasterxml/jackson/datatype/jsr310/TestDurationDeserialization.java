@@ -61,6 +61,19 @@ public class TestDurationDeserialization extends ModuleTestBase
         assertEquals("The value is not correct.", Duration.ofSeconds(13498L, 8374), value);
     }
 
+    /**
+     * This test can potentially hang the VM, so exit if it doesn't finish
+     * within a few seconds.
+     * @throws Exception
+     */
+    @Test(timeout=2000, expected = JsonMappingException.class)
+    public void testDeserializationAsFloatWhereStringTooLarge() throws Exception
+    {
+        String customDuration = "1000000000e1000000000";
+        READER.without(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                .readValue(customDuration);
+    }
+
     @Test
     public void testDeserializationAsInt01() throws Exception
     {
@@ -189,7 +202,7 @@ public class TestDurationDeserialization extends ModuleTestBase
         assertTrue("The value should be a Duration.", value instanceof Duration);
         assertEquals("The value is not correct.", duration, value);
     }
-    
+
     @Test
     public void testDeserializationAsArrayDisabled() throws Exception {
     	Duration exp = Duration.ofSeconds(13498L, 8374);
