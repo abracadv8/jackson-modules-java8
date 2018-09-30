@@ -17,6 +17,7 @@
 package com.fasterxml.jackson.datatype.jsr310.deser;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
@@ -54,6 +55,7 @@ public class InstantDeserializer<T extends Temporal>
 {
     private static final long serialVersionUID = 1L;
 
+    private static final int INSTANT_LARGEST_STRING = java.time.Instant.MAX.toString().length();
     private static final BigDecimal INSTANT_MAX = new BigDecimal(java.time.Instant.MAX.getEpochSecond() +"."+ java.time.Instant.MAX.getNano());
     private static final BigDecimal INSTANT_MIN = new BigDecimal(java.time.Instant.MIN.getEpochSecond() +"."+ java.time.Instant.MIN.getNano());
 
@@ -170,12 +172,27 @@ public class InstantDeserializer<T extends Temporal>
     {
         //NOTE: Timestamps contain no timezone info, and are always in configured TZ. Only
         //string values have to be adjusted to the configured TZ.
+
+
+       // System.out.println("LARGEST_STRING ["+LARGEST_STRING+"] Precision["+java.time.Instant.MAX.toString().length()+"] Scale["+INSTANT_MAX.scale()+"]");
+
+
         switch (parser.currentTokenId())
         {
             case JsonTokenId.ID_NUMBER_FLOAT:
+                String stringFloat = parser.getText().trim();
+                if(stringFloat.length() > INSTANT_LARGEST_STRING) {
+                    throw new JsonParseException(context.getParser(),
+                            String.format("Value of Float too large to be converted to Instant"));
+                }
                 return _fromDecimal(context, parser.getDecimalValue());
 
             case JsonTokenId.ID_NUMBER_INT:
+                String stringInt = parser.getText().trim();
+                if(stringInt.length() > INSTANT_LARGEST_STRING) {
+                    throw new JsonParseException(context.getParser(),
+                            String.format("Value of Integer too large to be converted to Instant"));
+                }
                 return _fromLong(context, parser.getLongValue());
 
             case JsonTokenId.ID_STRING:
@@ -190,12 +207,14 @@ public class InstantDeserializer<T extends Temporal>
                     _formatter == DateTimeFormatter.ISO_ZONED_DATE_TIME) {
                     // 22-Jan-2016, [datatype-jsr310#16]: Allow quoted numbers too
                     int dots = _countPeriods(string);
+
                     if (dots >= 0) { // negative if not simple number
                         try {
                             if (dots == 0) {
                                 return _fromLong(context, Long.parseLong(string));
                             }
                             if (dots == 1) {
+
                                 return _fromDecimal(context, new BigDecimal(string));
                             }
                         } catch (NumberFormatException e) {
@@ -282,13 +301,13 @@ public class InstantDeserializer<T extends Temporal>
                 timestamp, this.getZone(context)));
     }
     
-    protected T _fromDecimal(DeserializationContext context, BigDecimal value) throws JsonMappingException
+    protected T _fromDecimal(DeserializationContext context, BigDecimal value) throws JsonParseException
     {
         // If the decimal isnt within the bounds of an Instant, bail out
         if(value.compareTo(INSTANT_MAX) > 0 ||
                 value.compareTo(INSTANT_MIN) < 0) {
             NumberFormat formatter = new DecimalFormat("0.0E0");
-            throw JsonMappingException.from(context,
+            throw new JsonParseException(context.getParser(),
                     String.format("Value of BigDecimal (%s) not within range to be converted to Instant", formatter.format(value)));
         }
         long seconds = value.longValue();

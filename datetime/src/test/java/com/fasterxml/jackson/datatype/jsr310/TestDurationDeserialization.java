@@ -1,8 +1,10 @@
 package com.fasterxml.jackson.datatype.jsr310;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -66,7 +68,7 @@ public class TestDurationDeserialization extends ModuleTestBase
      * within a few seconds.
      * @throws Exception
      */
-    @Test(timeout=2000, expected = JsonMappingException.class)
+    @Test(timeout=2000, expected = JsonParseException.class)
     public void testDeserializationAsFloatWhereStringTooLarge() throws Exception
     {
         String customDuration = "1000000000e1000000000";
@@ -111,6 +113,33 @@ public class TestDurationDeserialization extends ModuleTestBase
 
         assertNotNull("The value should not be null.", value);
         assertEquals("The value is not correct.", Duration.ofSeconds(13498L, 0),  value);
+    }
+
+    @Test(timeout=5000, expected = JsonParseException.class)
+    public void testDeserializationAsIntTooLarge1() throws Exception {
+        String number = "0000000000000000000000000";
+        StringBuffer customInstant = new StringBuffer("1");
+        for (int i = 0; i < 1_000_000; i++) {
+            customInstant.append(number);
+
+            Duration value = READER.with(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                    .readValue(customInstant.toString());
+            assertNotNull("The value should not be null.", value);
+            assertEquals("The value is not correct.", Duration.ofSeconds(60L, 0), value);
+        }
+    }
+
+    @Test(timeout=5000, expected = JsonParseException.class)
+    public void testDeserializationAsIntTooLarge2() throws Exception
+    {
+        Instant date = Instant.MAX;
+        // Add in an few extra zeros to be longer than what an epoch should be
+        String customInstant = date.getEpochSecond() +"0000000000000000."+ date.getNano();
+
+        Duration value = READER.with(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                .readValue(customInstant);
+        assertNotNull("The value should not be null.", value);
+        assertEquals("The value is not correct.", Duration.ofSeconds(60L, 0),  value);
     }
 
     @Test

@@ -16,12 +16,12 @@
 
 package com.fasterxml.jackson.datatype.jsr310.deser;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.datatype.jsr310.DecimalUtils;
 
 import java.io.IOException;
@@ -41,6 +41,7 @@ public class DurationDeserializer extends JSR310DeserializerBase<Duration>
 {
     private static final long serialVersionUID = 1L;
 
+    private static final int INSTANT_LARGEST_STRING = java.time.Instant.MAX.toString().length();
     private static final BigDecimal INSTANT_MAX = new BigDecimal(java.time.Instant.MAX.getEpochSecond() +"."+ java.time.Instant.MAX.getNano());
     private static final BigDecimal INSTANT_MIN = new BigDecimal(java.time.Instant.MIN.getEpochSecond() +"."+ java.time.Instant.MIN.getNano());
 
@@ -62,7 +63,7 @@ public class DurationDeserializer extends JSR310DeserializerBase<Duration>
                 if(value.compareTo(INSTANT_MAX) > 0 ||
                         value.compareTo(INSTANT_MIN) < 0) {
                     NumberFormat formatter = new DecimalFormat("0.0E0");
-                    throw JsonMappingException.from(context,
+                    throw new JsonParseException(context.getParser(),
                             String.format("Value of BigDecimal (%s) not within range to be converted to Duration", formatter.format(value)));
                 }
 
@@ -71,6 +72,11 @@ public class DurationDeserializer extends JSR310DeserializerBase<Duration>
                 return Duration.ofSeconds(seconds, nanoseconds);
 
             case JsonTokenId.ID_NUMBER_INT:
+                String stringInt = parser.getText().trim();
+                if(stringInt.length() > INSTANT_LARGEST_STRING) {
+                    throw new JsonParseException(context.getParser(),
+                            String.format("Value of Integer too large to be converted to Duration"));
+                }
                 if(context.isEnabled(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)) {
                     return Duration.ofSeconds(parser.getLongValue());
                 }

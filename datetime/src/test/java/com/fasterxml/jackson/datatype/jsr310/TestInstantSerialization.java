@@ -401,6 +401,8 @@ public class TestInstantSerialization extends ModuleTestBase
         assertEquals("The value is not correct.", date, value);
     }
 
+
+
     /**
      * This test can potentially hang the VM, so exit if it doesn't finish
      * within a few seconds.
@@ -411,6 +413,72 @@ public class TestInstantSerialization extends ModuleTestBase
     public void testDeserializationWithTypeInfoAndStringTooLarge1() throws Exception
     {
         String customInstant = "1000000000000e1000000000000";
+        ObjectMapper m = newMapperBuilder()
+                .addMixIn(Temporal.class, MockObjectConfiguration.class)
+                .build();
+        m.readValue(
+                "[\"" + Instant.class.getName() + "\","+customInstant+"]", Temporal.class
+        );
+    }
+
+
+    /**
+     * This test can potentially hang the VM, so exit if it doesn't finish
+     * within a few seconds.
+     *
+     * @throws Exception
+     */
+    @Test(timeout=5000, expected = JsonParseException.class)
+    public void testDeserializationWithTypeInfoAndStringTooLarge2() throws Exception
+    {
+        String number = "0000000000000000000000000";
+        StringBuffer customInstant = new StringBuffer("1");
+        for(int i = 0; i < 1_000_000; i++ ) {
+            customInstant.append(number);
+        }
+
+        ObjectMapper m = newMapperBuilder()
+                .addMixIn(Temporal.class, MockObjectConfiguration.class)
+                .build();
+        m.readValue(
+                "[\"" + Instant.class.getName() + "\","+customInstant.toString()+"]", Temporal.class
+        );
+    }
+
+
+    /**
+     * This test can potentially hang the VM, so exit if it doesn't finish
+     * within a few seconds.
+     *
+     * @throws Exception
+     */
+    @Test(timeout=5000, expected = JsonParseException.class)
+    public void testDeserializationWithTypeInfoAndStringTooLarge3() throws Exception
+    {
+        Instant date = Instant.MAX;
+        // Add in an few extra zeros to be longer than what an epoch should be
+        String customInstant = date.getEpochSecond() +"0000000000000000."+ date.getNano();
+        ObjectMapper m = newMapperBuilder()
+                .addMixIn(Temporal.class, MockObjectConfiguration.class)
+                .build();
+        m.readValue(
+                "[\"" + Instant.class.getName() + "\","+customInstant+"]", Temporal.class
+        );
+    }
+
+    /**
+     * This test can potentially hang the VM, so exit if it doesn't finish
+     * within a few seconds.
+     *
+     * @throws Exception
+     */
+    @Test(timeout=5000, expected = JsonParseException.class)
+    public void testDeserializationWithTypeInfoAndStringTooLarge4() throws Exception
+    {
+        Instant date = Instant.MAX;
+        // Add in an extra zero to be longer than what an epoch should be
+        String customInstant = date.getEpochSecond() +"0"+ date.getNano();
+
         ObjectMapper m = newMapperBuilder()
                 .addMixIn(Temporal.class, MockObjectConfiguration.class)
                 .build();
